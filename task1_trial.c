@@ -6,17 +6,26 @@
 
 int main() {
     int n;
-    int capacity = 3;
     int count = 0;
-    int *primeList = (int*)malloc(capacity * sizeof(int));
     struct timespec start, end, startComp, endComp; 
     double time_taken;
+    char filename[50];
 
     // Get current clock time.
 	clock_gettime(CLOCK_MONOTONIC, &start); 
 
     printf("Please enter a number: ");
     scanf("%d", &n);
+
+    snprintf(filename, sizeof(filename), "primes_%d.txt", n);
+
+    FILE *file = NULL;
+
+    if(n < 100){
+        printf("Prime Number List:\n");
+    } else {
+        file = fopen(filename, "w");
+    }
 
     // Get current clock time.
 	clock_gettime(CLOCK_MONOTONIC, &startComp); 
@@ -28,18 +37,17 @@ int main() {
         // to 1 and number is even accept 2
         // then it is not prime
         if ((i > 2) && (i%2 == 0))
-            printf("%d is NOT prime\n", i);
+            continue;
         else {
 
             if(i==2){
-                printf("%d is prime\n", i);
-                if (count == capacity) {
-                    capacity *= 2;
-                    primeList = realloc(primeList, capacity * sizeof(int));
-                }
-
-                primeList[count] = i;
                 count++;
+
+                if(n < 100){
+                    printf("%d\n", i);
+                } else {
+                    fprintf(file, "%d\n", i);
+                }
             }else{
                 
             // Check how many numbers divide n in
@@ -52,22 +60,24 @@ int main() {
             // if cnt is greater than 0 then n is
             // not prime
             if (cnt > 0)
-                printf("%d is NOT prime\n", i);
+                continue;
 
             // else n is prime
             else {
-                printf("%d is prime\n", i);
-
-                if (count == capacity) {
-                    capacity *= 2;
-                    primeList = realloc(primeList, capacity * sizeof(int));
-                }
-
-                primeList[count] = i;
                 count++;
+
+                if(n < 100){
+                    printf("%d\n", i);
+                } else {
+                    fprintf(file, "%d\n", i);
+                }
             }
             }
         }
+    }
+
+    if (n >= 100) {
+        fclose(file);
     }
 
     // Get the clock current time again
@@ -80,14 +90,6 @@ int main() {
 
     // Print the prime list
     printf("\nPrime list:\n");
-
-    for (int i = 0; i < count; i++) {
-        printf("%d ", primeList[i]);
-    }
-
-    printf("\n");
-
-    free(primeList);
 
     // Get the clock current time again
 	// Subtract end from start to get the CPU time used.
