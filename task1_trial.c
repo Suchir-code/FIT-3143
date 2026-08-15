@@ -11,11 +11,11 @@ int main() {
     double time_taken;
     char filename[50];
 
-    // Get current clock time.
-	clock_gettime(CLOCK_MONOTONIC, &start); 
-
     printf("Please enter a number: ");
     scanf("%d", &n);
+
+    // Get current clock time.
+	clock_gettime(CLOCK_MONOTONIC, &start); 
 
     snprintf(filename, sizeof(filename), "primes_%d.txt", n);
 
@@ -78,6 +78,7 @@ int main() {
 
     if (n >= 100) {
         fclose(file);
+        printf("Prime numbers have been added to the text file.\n");
     }
 
     // Get the clock current time again
@@ -86,10 +87,6 @@ int main() {
 	time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9; 
     	time_taken = (time_taken + (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9; 
 	printf("Cell product complete - Computational time only(s): %lf\n", time_taken); // portion of the computing time of ts
-
-
-    // Print the prime list
-    printf("\nPrime list:\n");
 
     // Get the clock current time again
 	// Subtract end from start to get the CPU time used.
