@@ -9,6 +9,7 @@ int main() {
     int cnt = 0; 
     struct timespec start, end, startComp, endComp; 
     double time_taken; 
+    char filename[50];
  
 
     printf("Enter the number: "); 
@@ -22,11 +23,13 @@ int main() {
 
     clock_gettime(CLOCK_MONOTONIC, &start); 
 
+    snprintf(filename, sizeof(filename), "primes_%d.txt", n);
+
     FILE *file = NULL; 
  
     // For n greater than 100 we create a file 
     if (n >= 100) { 
-        file = fopen("text.txt", "w"); 
+        file = fopen(filename, "w"); 
  
         if (file == NULL) { 
             printf("Could not create file.\n"); 
@@ -91,7 +94,7 @@ int main() {
         printf("\n"); 
     } else { 
         fclose(file); 
-        printf("Prime numbers have been written to text.txt\n"); 
+        printf("Prime numbers have been written to the text file.\n"); 
     } 
  
     // Stop measuring overall execution time

@@ -55,6 +55,7 @@ int main() {
             for (int j = 3; j <= sqrt(i); j+=2) {
                 if (i % j == 0)
                     cnt++;
+                    break;
             }
 
             // if cnt is greater than 0 then n is
@@ -76,17 +77,18 @@ int main() {
         }
     }
 
-    if (n >= 100) {
-        fclose(file);
-        printf("Prime numbers have been added to the text file.\n");
-    }
-
     // Get the clock current time again
 	// Subtract end from start to get the CPU time used.
 	clock_gettime(CLOCK_MONOTONIC, &endComp); 
 	time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9; 
     	time_taken = (time_taken + (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9; 
 	printf("Cell product complete - Computational time only(s): %lf\n", time_taken); // portion of the computing time of ts
+
+
+    if (n >= 100) {
+        fclose(file);
+        printf("Prime numbers have been added to the text file.\n");
+    }
 
     // Get the clock current time again
 	// Subtract end from start to get the CPU time used.
