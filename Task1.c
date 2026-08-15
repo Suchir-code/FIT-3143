@@ -45,7 +45,7 @@ int main() {
         // 2 is prime 
         if (p == 2) { 
             if (n < 100) { 
-                printf("%d ", p); 
+                printf("%d\n", p); 
             } else { 
                 fprintf(file, "%d\n", p); 
             } 
@@ -71,7 +71,7 @@ int main() {
         if (cnt == 0) { 
  
             if (n < 100) { 
-                printf("%d", p); 
+                printf("%d\n", p); 
             } else { 
                 fprintf(file, "%d\n", p); 
             } 
