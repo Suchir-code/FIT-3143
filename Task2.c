@@ -5,13 +5,14 @@
 #include <time.h> 
 #include <pthread.h>
 
-#define NUM_THREADS 8
+#define NUM_THREADS 16
+#define CHUNK_SIZE 10000
 
 int numbers_to_check;
 int numbers_per_thread;
-int n; 
-
-
+int n;
+int nextNumber;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 
 int *primeLists[NUM_THREADS];
 int primeCounts[NUM_THREADS];
@@ -28,7 +29,6 @@ int main() {
 
     pthread_t tid[NUM_THREADS];
     int threadNum[NUM_THREADS];
- 
 
     printf("Enter the number: "); 
 
@@ -38,6 +38,8 @@ int main() {
         printf("Invalid input, please try again.\n"); 
         return 1; 
     } 
+
+    nextNumber = 2;
 
     clock_gettime(CLOCK_MONOTONIC, &start); 
 
@@ -129,50 +131,59 @@ void *ThreadFunc(void *pArg)
 {
     int my_rank = *((int *)pArg);
 
-    int numbers_to_check = n - 2;
-    int numbers_per_thread = numbers_to_check / NUM_THREADS;
-    int remainder = numbers_to_check % NUM_THREADS;
+    while (1) {
 
-    int start = 2 + my_rank * numbers_per_thread;
-    int end = start + numbers_per_thread - 1;
+        // Get the next chunk of work
+        pthread_mutex_lock(&mutex);
 
-    // Give remaining numbers to the last thread
-    if (my_rank == NUM_THREADS - 1) {
-        end += remainder;
-    }
+        int start = nextNumber;
+        int end = start + CHUNK_SIZE - 1;
 
-    printf("Thread %d: checking %d to %d\n",
-           my_rank, start, end);
+        nextNumber = end + 1;
 
-    for (int p = start; p <= end; p++) {
+        pthread_mutex_unlock(&mutex);
 
-        int cnt = 0;
-
-        // 2 is prime
-        if (p == 2) {
-            primeLists[my_rank][primeCounts[my_rank]] = p;
-            primeCounts[my_rank]++;
-            continue;
+        // No more numbers to process
+        if (start >= n) {
+            break;
         }
 
-        // Even numbers greater than 2 are not prime
-        if (p % 2 == 0) {
-            continue;
+        // Don't go beyond n - 1
+        if (end >= n) {
+            end = n - 1;
         }
 
-        // Check odd divisors from 3 to sqrt(p)
-        for (int i = 3; i <= sqrt(p); i += 2) {
+        // Process this chunk
+        for (int p = start; p <= end; p++) {
 
-            if (p % i == 0) {
-                cnt++;
-                break;
+            int cnt = 0;
+
+            // 2 is prime
+            if (p == 2) {
+                primeLists[my_rank][primeCounts[my_rank]] = p;
+                primeCounts[my_rank]++;
+                continue;
             }
-        }
 
-        // No divisor found → prime
-        if (cnt == 0) {
-            primeLists[my_rank][primeCounts[my_rank]] = p;
-            primeCounts[my_rank]++;
+            // Even numbers greater than 2 are not prime
+            if (p % 2 == 0) {
+                continue;
+            }
+
+            // Check odd divisors up to sqrt(p)
+            for (int i = 3; i <= sqrt(p); i += 2) {
+
+                if (p % i == 0) {
+                    cnt++;
+                    break;
+                }
+            }
+
+            // No divisor found → prime
+            if (cnt == 0) {
+                primeLists[my_rank][primeCounts[my_rank]] = p;
+                primeCounts[my_rank]++;
+            }
         }
     }
 
