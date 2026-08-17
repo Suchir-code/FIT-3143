@@ -153,6 +153,8 @@ void *ThreadFunc(void *pArg)
             end = n - 1;
         }
 
+        printf("Thread %d: checking %d to %d\n", my_rank, start, end);
+
         // Process this chunk
         for (int p = start; p <= end; p++) {
 
