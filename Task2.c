@@ -19,6 +19,7 @@ int primeCounts[NUM_THREADS];
 
 // Funciton prototype
 void *ThreadFunc(void *pArg); // POSIX thread function format
+int compare(const void *a, const void *b);
  
 int main() { 
     int cnt = 0; 
@@ -85,22 +86,39 @@ int main() {
  
     printf("\nComputational time only(s): %lf\n", time_taken); 
 
-    /*
-       Print results in thread/range order.
-       Since each thread handles a consecutive range,
-       this keeps the primes sorted.
-    */
+    // Combine all thread results and sort them
+    // because dynamic scheduling does not guarantee
+    // that threads finish chunks in numerical order.
+    int totalPrimes = 0;
+
     for (int i = 0; i < NUM_THREADS; i++) {
+        totalPrimes += primeCounts[i];
+    }
 
+    int *allPrimes = malloc(totalPrimes * sizeof(int));
+
+    int index = 0;
+
+    for (int i = 0; i < NUM_THREADS; i++) {
         for (int j = 0; j < primeCounts[i]; j++) {
-
-            if (n < 100) {
-                printf("%d ", primeLists[i][j]);
-            } else {
-                fprintf(file, "%d\n", primeLists[i][j]);
-            }
+            allPrimes[index++] = primeLists[i][j];
         }
     }
+
+    // Sort primes in ascending order
+    qsort(allPrimes, totalPrimes, sizeof(int), compare);
+
+    // Print sorted primes
+    for (int i = 0; i < totalPrimes; i++) {
+
+        if (n < 100) {
+            printf("%d ", allPrimes[i]);
+        } else {
+            fprintf(file, "%d\n", allPrimes[i]);
+        }
+    }
+
+    free(allPrimes);
  
     if (n < 100) { 
         printf("\n"); 
@@ -190,4 +208,9 @@ void *ThreadFunc(void *pArg)
     }
 
     return NULL;
+}
+
+int compare(const void *a, const void *b)
+{
+    return (*(int *)a - *(int *)b);
 }
