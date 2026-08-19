@@ -1,158 +1,142 @@
-#include <math.h> 
-#include <stdbool.h> 
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <time.h> 
+#include <math.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 
-#define NUM_THREADS 8
-#define CHUNK_SIZE 10000
+#define NUM_THREADS 10
+#define CHUNK_SIZE 100000
 
-int numbers_to_check;
-int numbers_per_thread;
 int n;
 int nextNumber;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 
-int *primeLists[NUM_THREADS];
-int primeCounts[NUM_THREADS];
+int *isPrime;
 
-// Funciton prototype
-void *ThreadFunc(void *pArg); // POSIX thread function format
-int compare(const void *a, const void *b);
- 
-int main() { 
-    int cnt = 0; 
-    struct timespec start, end, startComp, endComp; 
-    double time_taken; 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Function prototype
+void *ThreadFunc(void *pArg);
+
+int main() {
+    struct timespec start, end, startComp, endComp;
+    double time_taken;
     char filename[50];
     int i;
 
     pthread_t tid[NUM_THREADS];
     int threadNum[NUM_THREADS];
 
-    printf("Enter the number: "); 
+    printf("Enter the number: ");
 
-    // Start measuring overall execution time
- 
-    if (scanf("%d", &n) != 1 || n <= 0) { 
-        printf("Invalid input, please try again.\n"); 
-        return 1; 
-    } 
+    if (scanf("%d", &n) != 1 || n <= 0) {
+        printf("Invalid input, please try again.\n");
+        return 1;
+    }
 
     nextNumber = 2;
 
-    clock_gettime(CLOCK_MONOTONIC, &start); 
+    // Start measuring overall execution time
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     snprintf(filename, sizeof(filename), "primes2_%d.txt", n);
 
-    FILE *file = NULL; 
- 
-    // For n greater than 100 we create a file 
-    if (n >= 100) { 
-        file = fopen(filename, "w"); 
- 
-        if (file == NULL) { 
-            printf("Could not create file.\n"); 
-            return 1; 
-        } 
-    } 
+    FILE *file = NULL;
 
-    // Allocate space for each thread's results
-    for (int i = 0; i < NUM_THREADS; i++) {
-        primeLists[i] = malloc(n * sizeof(int));
-        primeCounts[i] = 0;
+    // Allocate memory to store prime results
+    isPrime = malloc((size_t)n * sizeof(int));
+
+    if (isPrime == NULL) {
+        printf("Memory allocation failed.\n");
+        return 1;
     }
- 
+
+    // For n greater than or equal to 100, create a file
+    if (n >= 100) {
+        file = fopen(filename, "w");
+
+        if (file == NULL) {
+            printf("Could not create file.\n");
+            free(isPrime);
+            return 1;
+        }
+    }
+
     // Start measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &startComp); 
- 
-    for (i = 0; i < NUM_THREADS; i++){
+    clock_gettime(CLOCK_MONOTONIC, &startComp);
+
+    // Create threads
+    for (i = 0; i < NUM_THREADS; i++) {
         threadNum[i] = i;
-        pthread_create(&tid[i], 0, ThreadFunc, &threadNum[i]);
+
+        pthread_create(
+            &tid[i],
+            NULL,
+            ThreadFunc,
+            &threadNum[i]
+        );
     }
 
-    for (i = 0; i < NUM_THREADS; i++)
-    {
+    // Wait for all threads to finish
+    for (i = 0; i < NUM_THREADS; i++) {
         pthread_join(tid[i], NULL);
     }
- 
+
     // Stop measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &endComp); 
- 
-    time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9; 
-    time_taken = (time_taken + 
-                 (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9; 
- 
-    printf("\nComputational time only(s): %lf\n", time_taken); 
+    clock_gettime(CLOCK_MONOTONIC, &endComp);
 
-    // Combine all thread results and sort them
-    // because dynamic scheduling does not guarantee
-    // that threads finish chunks in numerical order.
-    int totalPrimes = 0;
+    time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9;
+    time_taken = (time_taken +
+                  (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        totalPrimes += primeCounts[i];
-    }
+    printf("\nComputational time only(s): %lf\n", time_taken);
 
-    int *allPrimes = malloc(totalPrimes * sizeof(int));
+    // Output primes AFTER computational timing
+    for (int p = 2; p < n; p++) {
 
-    int index = 0;
+        if (isPrime[p] == 1) {
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        for (int j = 0; j < primeCounts[i]; j++) {
-            allPrimes[index++] = primeLists[i][j];
+            if (n < 100) {
+                printf("%d ", p);
+            } else {
+                fprintf(file, "%d\n", p);
+            }
         }
     }
 
-    // Sort primes in ascending order
-    qsort(allPrimes, totalPrimes, sizeof(int), compare);
-
-    // Print sorted primes
-    for (int i = 0; i < totalPrimes; i++) {
-
-        if (n < 100) {
-            printf("%d ", allPrimes[i]);
-        } else {
-            fprintf(file, "%d\n", allPrimes[i]);
-        }
+    if (n < 100) {
+        printf("\n");
+    } else {
+        fclose(file);
+        printf("Prime numbers have been written to the text file.\n");
     }
 
-    free(allPrimes);
- 
-    if (n < 100) { 
-        printf("\n"); 
-    } else { 
-        fclose(file); 
-        printf("Prime numbers have been written to the text file.\n"); 
-    } 
+    // Free allocated memory
+    free(isPrime);
 
-    // Free each thread's list
-    for (int i = 0; i < NUM_THREADS; i++) {
-        free(primeLists[i]);
-    }
- 
     // Stop measuring overall execution time
-    clock_gettime(CLOCK_MONOTONIC, &end); 
- 
-    time_taken = (end.tv_sec - start.tv_sec) * 1e9; 
-    time_taken = (time_taken + 
-                 (end.tv_nsec - start.tv_nsec)) * 1e-9; 
- 
-    printf("Overall time(s): %lf\n", time_taken); 
- 
-    return 0; 
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    time_taken = (end.tv_sec - start.tv_sec) * 1e9;
+    time_taken = (time_taken +
+                  (end.tv_nsec - start.tv_nsec)) * 1e-9;
+
+    printf("Overall time(s): %lf\n", time_taken);
+
+    return 0;
 }
+
 
 // Thread function
 void *ThreadFunc(void *pArg)
 {
     int my_rank = *((int *)pArg);
 
+    // Individual thread CPU timing
     struct timespec threadStart, threadEnd;
     double threadTime;
 
-    // Start timing this thread
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &threadStart);
 
     while (1) {
@@ -172,7 +156,7 @@ void *ThreadFunc(void *pArg)
             break;
         }
 
-        // Don't go beyond n - 1
+        // Do not go beyond n - 1
         if (end >= n) {
             end = n - 1;
         }
@@ -180,12 +164,12 @@ void *ThreadFunc(void *pArg)
         // Process this chunk
         for (int p = start; p <= end; p++) {
 
-            int cnt = 0;
+            // Start by assuming p is not prime
+            isPrime[p] = 0;
 
             // 2 is prime
             if (p == 2) {
-                primeLists[my_rank][primeCounts[my_rank]] = p;
-                primeCounts[my_rank]++;
+                isPrime[p] = 1;
                 continue;
             }
 
@@ -194,37 +178,36 @@ void *ThreadFunc(void *pArg)
                 continue;
             }
 
-            // Check odd divisors up to sqrt(p)
-            for (int i = 3; i <= sqrt(p); i += 2) {
+            bool prime = true;
+
+            // Calculate sqrt only once for each number
+            int limit = (int)sqrt((double)p);
+
+            // Check odd divisors from 3 to sqrt(p)
+            for (int i = 3; i <= limit; i += 2) {
 
                 if (p % i == 0) {
-                    cnt++;
+                    prime = false;
                     break;
                 }
             }
 
-            // No divisor found -> prime
-            if (cnt == 0) {
-                primeLists[my_rank][primeCounts[my_rank]] = p;
-                primeCounts[my_rank]++;
+            // If no divisor was found, p is prime
+            if (prime) {
+                isPrime[p] = 1;
             }
         }
     }
 
-    // Stop timing this thread
+    // Stop individual thread CPU timing
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &threadEnd);
 
     threadTime = (threadEnd.tv_sec - threadStart.tv_sec) * 1e9;
     threadTime = (threadTime +
-                 (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
+                  (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
 
     printf("Thread %d CPU time: %.6f seconds\n",
            my_rank, threadTime);
 
     return NULL;
-}
-
-int compare(const void *a, const void *b)
-{
-    return (*(int *)a - *(int *)b);
 }
