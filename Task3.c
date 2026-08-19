@@ -4,24 +4,23 @@
 #include <stdlib.h>
 #include <time.h>
 #include <omp.h>
-
-#define CHUNK_SIZE 10000
-
-int main() {
-    int n;
-    struct timespec start, end, startComp, endComp;
-    double time_taken;
-    char filename[50];
-
-    printf("Enter the number: ");
-
-    if (scanf("%d", &n) != 1 || n <= 0) {
-        printf("Invalid input, please try again.\n");
-        return 1;
-    }
-
-    // Start measuring overall execution time
-    clock_gettime(CLOCK_MONOTONIC, &start);
+  
+int main() {  
+    int n;  
+    struct timespec start, end, startComp, endComp;  
+    double time_taken;  
+  
+ 
+    printf("Enter the number: ");  
+ 
+    // Start measuring overall execution time 
+  
+    if (scanf("%d", &n) != 1 || n <= 0) {  
+        printf("Invalid input, please try again.\n");  
+        return 1;  
+    }  
+ 
+    clock_gettime(CLOCK_MONOTONIC, &start); 
 
     snprintf(filename, sizeof(filename), "primes3_%d.txt", n);
 
@@ -42,19 +41,20 @@ int main() {
         if (file == NULL) {
             printf("Could not create file.\n");
             free(isPrime);
-            return 1;
-        }
-    }
 
-    // Prevent OpenMP from dynamically changing the requested thread count
-    omp_set_dynamic(0);
+            return 1;  
+        }  
+    }  
+  
+    // Start measuring computational time 
+    clock_gettime(CLOCK_MONOTONIC, &startComp);  
+  
+    // Check every number p strictly less than n  
 
-    // Start measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &startComp);
-
-    // Parallel prime number computation
-    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
-    for (int p = 2; p < n; p++) {
+    //added for task 3
+    #pragma omp parallel for 
+    for (int p = 2; p < n; p++) {  
+        int cnt = 0;  
 
         // Start by assuming p is not prime
         isPrime[p] = 0;

@@ -4,19 +4,14 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #define NUM_THREADS 10
 #define CHUNK_SIZE 100000
 
 int n;
 int nextNumber;
-
-int *isPrime;
-
-// Store each thread's CPU time
-double threadTimes[NUM_THREADS];
-
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 
 // Function prototype
 void *ThreadFunc(void *pArg);
@@ -86,26 +81,38 @@ int main() {
     }
 
     // Stop measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &endComp);
+    clock_gettime(CLOCK_MONOTONIC, &endComp); 
+ 
+    time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9; 
+    time_taken = (time_taken + 
+                 (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9; 
+ 
+    printf("\nComputational time only(s): %lf\n", time_taken); 
 
-    time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9;
-    time_taken = (time_taken +
-                  (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
+    // Combine all thread results and sort them
+    // because dynamic scheduling does not guarantee
+    // that threads finish chunks in numerical order.
+    int totalPrimes = 0;
 
-
-    // Print individual thread CPU times AFTER computational timing
-    for (i = 0; i < NUM_THREADS; i++) {
-        printf("Thread %d CPU time: %.6f seconds\n",
-               i, threadTimes[i]);
+    for (int i = 0; i < NUM_THREADS; i++) {
+        totalPrimes += primeCounts[i];
     }
 
-    printf("\nComputational time only(s): %lf\n", time_taken);
+    int *allPrimes = malloc(totalPrimes * sizeof(int));
 
+    int index = 0;
 
-    // Output primes AFTER computational timing
-    for (int p = 2; p < n; p++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
+        for (int j = 0; j < primeCounts[i]; j++) {
+            allPrimes[index++] = primeLists[i][j];
+        }
+    }
 
-        if (isPrime[p] == 1) {
+    // Sort primes in ascending order
+    qsort(allPrimes, totalPrimes, sizeof(int), compare);
+
+    // Print sorted primes
+    for (int i = 0; i < totalPrimes; i++) {
 
             if (n < 100) {
                 printf("%d ", p);
@@ -202,21 +209,18 @@ void *ThreadFunc(void *pArg)
                 }
             }
 
-            // If no divisor was found, p is prime
-            if (prime) {
-                isPrime[p] = 1;
+            // No divisor found → prime
+            if (cnt == 0) {
+                primeLists[my_rank][primeCounts[my_rank]] = p;
+                primeCounts[my_rank]++;
             }
         }
     }
 
-    // Stop individual thread CPU timing
-    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &threadEnd);
-
-    threadTime = (threadEnd.tv_sec - threadStart.tv_sec) * 1e9;
-    threadTime = (threadTime +
-                  (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
-
-    threadTimes[my_rank] = threadTime;
-
     return NULL;
+}
+
+int compare(const void *a, const void *b)
+{
+    return (*(int *)a - *(int *)b);
 }
