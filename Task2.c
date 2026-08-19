@@ -5,7 +5,7 @@
 #include <time.h> 
 #include <pthread.h>
 
-#define NUM_THREADS 16
+#define NUM_THREADS 8
 #define CHUNK_SIZE 10000
 
 int numbers_to_check;
@@ -149,6 +149,12 @@ void *ThreadFunc(void *pArg)
 {
     int my_rank = *((int *)pArg);
 
+    struct timespec threadStart, threadEnd;
+    double threadTime;
+
+    // Start timing this thread
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &threadStart);
+
     while (1) {
 
         // Get the next chunk of work
@@ -170,8 +176,6 @@ void *ThreadFunc(void *pArg)
         if (end >= n) {
             end = n - 1;
         }
-
-        printf("Thread %d: checking %d to %d\n", my_rank, start, end);
 
         // Process this chunk
         for (int p = start; p <= end; p++) {
@@ -199,13 +203,23 @@ void *ThreadFunc(void *pArg)
                 }
             }
 
-            // No divisor found → prime
+            // No divisor found -> prime
             if (cnt == 0) {
                 primeLists[my_rank][primeCounts[my_rank]] = p;
                 primeCounts[my_rank]++;
             }
         }
     }
+
+    // Stop timing this thread
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &threadEnd);
+
+    threadTime = (threadEnd.tv_sec - threadStart.tv_sec) * 1e9;
+    threadTime = (threadTime +
+                 (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
+
+    printf("Thread %d CPU time: %.6f seconds\n",
+           my_rank, threadTime);
 
     return NULL;
 }
