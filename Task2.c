@@ -13,9 +13,6 @@ int nextNumber;
 
 int *isPrime;
 
-// Store each thread's CPU time
-double threadTimes[NUM_THREADS];
-
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Function prototype
@@ -92,20 +89,32 @@ int main() {
     time_taken = (time_taken +
                   (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
 
-
-    // Print individual thread CPU times AFTER computational timing
-    for (i = 0; i < NUM_THREADS; i++) {
-        printf("Thread %d CPU time: %.6f seconds\n",
-               i, threadTimes[i]);
-    }
-
     printf("\nComputational time only(s): %lf\n", time_taken);
 
+    // Combine all thread results and sort them
+    // because dynamic scheduling does not guarantee
+    // that threads finish chunks in numerical order.
+    int totalPrimes = 0;
 
-    // Output primes AFTER computational timing
-    for (int p = 2; p < n; p++) {
+    for (int i = 0; i < NUM_THREADS; i++) {
+        totalPrimes += primeCounts[i];
+    }
 
-        if (isPrime[p] == 1) {
+    int *allPrimes = malloc(totalPrimes * sizeof(int));
+
+    int index = 0;
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        for (int j = 0; j < primeCounts[i]; j++) {
+            allPrimes[index++] = primeLists[i][j];
+        }
+    }
+
+    // Sort primes in ascending order
+    qsort(allPrimes, totalPrimes, sizeof(int), compare);
+
+    // Print sorted primes
+    for (int i = 0; i < totalPrimes; i++) {
 
             if (n < 100) {
                 printf("%d ", p);
@@ -216,7 +225,8 @@ void *ThreadFunc(void *pArg)
     threadTime = (threadTime +
                   (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
 
-    threadTimes[my_rank] = threadTime;
+    printf("Thread %d CPU time: %.6f seconds\n",
+           my_rank, threadTime);
 
     return NULL;
 }

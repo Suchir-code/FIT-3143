@@ -5,6 +5,7 @@
 #include <time.h>
 #include <omp.h>
 
+#define NUM_THREADS 16
 #define CHUNK_SIZE 10000
 
 int main() {
@@ -45,6 +46,10 @@ int main() {
             return 1;
         }
     }
+
+    // Make OpenMP use the same number of threads as Task 2
+    omp_set_dynamic(0);
+    omp_set_num_threads(NUM_THREADS);
 
     // Start measuring computational time
     clock_gettime(CLOCK_MONOTONIC, &startComp);
