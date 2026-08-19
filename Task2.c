@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
-#include <unistd.h>
 
 #define NUM_THREADS 10
 #define CHUNK_SIZE 100000
@@ -13,6 +12,9 @@ int n;
 int nextNumber;
 
 int *isPrime;
+
+// Store each thread's CPU time
+double threadTimes[NUM_THREADS];
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -90,7 +92,15 @@ int main() {
     time_taken = (time_taken +
                   (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
 
+
+    // Print individual thread CPU times AFTER computational timing
+    for (i = 0; i < NUM_THREADS; i++) {
+        printf("Thread %d CPU time: %.6f seconds\n",
+               i, threadTimes[i]);
+    }
+
     printf("\nComputational time only(s): %lf\n", time_taken);
+
 
     // Output primes AFTER computational timing
     for (int p = 2; p < n; p++) {
@@ -206,8 +216,7 @@ void *ThreadFunc(void *pArg)
     threadTime = (threadTime +
                   (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
 
-    printf("Thread %d CPU time: %.6f seconds\n",
-           my_rank, threadTime);
+    threadTimes[my_rank] = threadTime;
 
     return NULL;
 }
