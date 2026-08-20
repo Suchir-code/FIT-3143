@@ -1,3 +1,25 @@
+/**
+ * @file Task3.c
+ * @brief Parallel implementation for finding prime numbers less than n
+ * using OpenMP.
+ *
+ * This program accepts a positive integer n from the user and determines
+ * all prime numbers that are strictly less than n using OpenMP parallelisation.
+ *
+ * The prime-number computation is distributed among OpenMP threads using
+ * dynamic scheduling with a fixed chunk size. Dynamic scheduling allows
+ * threads that finish their assigned chunks earlier to obtain additional
+ * chunks of work, helping to balance the workload.
+ *
+ * Prime numbers are output in ascending order. Prime numbers that are less
+ * than 100 are printed to standard output, while larger results are written
+ * to a text file.
+ *
+ * @author Suchir
+ * @author Zahra
+ * @date 2026
+ */
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -7,6 +29,15 @@
 
 #define CHUNK_SIZE 10000
 
+/**
+ * @brief Main entry point of the OpenMP prime-number program.
+ *
+ * Reads the input value n, allocates memory for storing prime results,
+ * performs the parallel prime-number computation, measures execution time,
+ * outputs the results, and releases allocated memory.
+ *
+ * @return 0 if the program completes successfully, or 1 if an error occurs.
+ */
 int main() {
     int n;
     struct timespec start, end, startComp, endComp;
@@ -49,7 +80,16 @@ int main() {
     // Start measuring computational time
     clock_gettime(CLOCK_MONOTONIC, &startComp);
 
-    // Parallel prime number computation
+    /**
+     * Parallel prime-number computation.
+     *
+     * Each iteration checks whether a number p is prime.
+     * The iterations are distributed dynamically among OpenMP threads.
+     *
+     * schedule(dynamic, CHUNK_SIZE) assigns chunks of CHUNK_SIZE
+     * iterations to available threads. When a thread finishes its
+     * current chunk, it receives another available chunk.
+     */
     #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (int p = 2; p < n; p++) {
 
