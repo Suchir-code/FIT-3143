@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=posix_job	 ### name your job 
+#SBATCH --time=00:10:00		 ### hh:mm:ss or dd-hh:mm:ss
+#SBATCH --mem=16G				 ### memory setting is max @ 4 GB per core
+#SBATCH --ntasks=1				 ### launch one process
+#SBATCH --cpus-per-task=4		 ### multi-threaded processes
+#SBATCH --output=posix.%j.out
+#SBATCH --partition=defq
+
+if [ ! -f posix ]
+then
+ gcc posix.c -lpthread -o posix
+else
+ if [ posix.c -nt posix ]
+ then
+  gcc posix.c -lpthread -o posix
+ fi
+fi
+
+./posix
+
+exit 0
