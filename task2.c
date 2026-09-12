@@ -39,19 +39,20 @@
 #define CHUNK_SIZE 100000
 
 int n;
-int nextNumber;
-int *isPrime;
+int next_number;
+int *is_prime;
 
-/** Mutex used to protect access to the shared nextNumber counter. */
+/** Mutex used to protect access to the shared next_number counter. */
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /** Number of threads used by the program. */
 int num_threads;
 
-/** Store each thread's CPU time. */
-double *threadTimes;
+/** Stores each thread's CPU time. */
+double *thread_times;
 
-void *ThreadFunc(void *pArg);
+/** POSIX worker-thread function. */
+void *thread_func(void *arg);
 
 /**
  * @brief Main function of the POSIX threads prime-number program.
@@ -64,9 +65,9 @@ void *ThreadFunc(void *pArg);
  */
 int main()
 {
-    struct timespec start, end, startComp, endComp;
+    struct timespec start, end, start_comp, end_comp;
     double time_taken;
-    char filename[50];
+    char file_name[50];
 
     /*
      * Determine the number of processors available to the program.
@@ -77,30 +78,33 @@ int main()
         num_threads = 1;
     }
 
-    printf("Available CPU processors: %d\n", num_threads);
+    printf(
+        "Available CPU processors: %d\n",
+        num_threads
+    );
 
     /*
      * Allocate thread IDs, thread numbers and thread timing data
      * according to the number of available processors.
      */
-    pthread_t *tid =
+    pthread_t *thread_ids =
         malloc(num_threads * sizeof(pthread_t));
 
-    int *threadNum =
+    int *thread_numbers =
         malloc(num_threads * sizeof(int));
 
-    threadTimes =
+    thread_times =
         malloc(num_threads * sizeof(double));
 
-    if (tid == NULL ||
-        threadNum == NULL ||
-        threadTimes == NULL) {
+    if (thread_ids == NULL ||
+        thread_numbers == NULL ||
+        thread_times == NULL) {
 
         printf("Memory allocation failed.\n");
 
-        free(tid);
-        free(threadNum);
-        free(threadTimes);
+        free(thread_ids);
+        free(thread_numbers);
+        free(thread_times);
 
         return 1;
     }
@@ -111,14 +115,14 @@ int main()
 
         printf("Invalid input, please try again.\n");
 
-        free(tid);
-        free(threadNum);
-        free(threadTimes);
+        free(thread_ids);
+        free(thread_numbers);
+        free(thread_times);
 
         return 1;
     }
 
-    nextNumber = 2;
+    next_number = 2;
 
     /* Start measuring overall execution time. */
     clock_gettime(
@@ -127,8 +131,8 @@ int main()
     );
 
     snprintf(
-        filename,
-        sizeof(filename),
+        file_name,
+        sizeof(file_name),
         "primes2_%d.txt",
         n
     );
@@ -136,16 +140,16 @@ int main()
     FILE *file = NULL;
 
     /* Allocate memory to store prime results. */
-    isPrime =
+    is_prime =
         malloc((size_t)n * sizeof(int));
 
-    if (isPrime == NULL) {
+    if (is_prime == NULL) {
 
         printf("Memory allocation failed.\n");
 
-        free(tid);
-        free(threadNum);
-        free(threadTimes);
+        free(thread_ids);
+        free(thread_numbers);
+        free(thread_times);
 
         return 1;
     }
@@ -153,16 +157,16 @@ int main()
     /* Create output file for n >= 100. */
     if (n >= 100) {
 
-        file = fopen(filename, "w");
+        file = fopen(file_name, "w");
 
         if (file == NULL) {
 
             printf("Could not create file.\n");
 
-            free(isPrime);
-            free(tid);
-            free(threadNum);
-            free(threadTimes);
+            free(is_prime);
+            free(thread_ids);
+            free(thread_numbers);
+            free(thread_times);
 
             return 1;
         }
@@ -171,7 +175,7 @@ int main()
     /* Start measuring computational time. */
     clock_gettime(
         CLOCK_MONOTONIC,
-        &startComp
+        &start_comp
     );
 
     /*
@@ -179,13 +183,13 @@ int main()
      */
     for (int i = 0; i < num_threads; i++) {
 
-        threadNum[i] = i;
+        thread_numbers[i] = i;
 
         int result = pthread_create(
-            &tid[i],
+            &thread_ids[i],
             NULL,
-            ThreadFunc,
-            &threadNum[i]
+            thread_func,
+            &thread_numbers[i]
         );
 
         if (result != 0) {
@@ -195,10 +199,10 @@ int main()
                 i
             );
 
-            free(isPrime);
-            free(tid);
-            free(threadNum);
-            free(threadTimes);
+            free(is_prime);
+            free(thread_ids);
+            free(thread_numbers);
+            free(thread_times);
 
             return 1;
         }
@@ -208,7 +212,7 @@ int main()
     for (int i = 0; i < num_threads; i++) {
 
         pthread_join(
-            tid[i],
+            thread_ids[i],
             NULL
         );
     }
@@ -216,15 +220,15 @@ int main()
     /* Stop measuring computational time. */
     clock_gettime(
         CLOCK_MONOTONIC,
-        &endComp
+        &end_comp
     );
 
     time_taken =
-        (endComp.tv_sec - startComp.tv_sec) * 1e9;
+        (end_comp.tv_sec - start_comp.tv_sec) * 1e9;
 
     time_taken =
         (time_taken +
-        (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
+        (end_comp.tv_nsec - start_comp.tv_nsec)) * 1e-9;
 
     /*
      * Print individual thread CPU times.
@@ -234,7 +238,7 @@ int main()
         printf(
             "Thread %d CPU time: %.6f seconds\n",
             i,
-            threadTimes[i]
+            thread_times[i]
         );
     }
 
@@ -246,18 +250,22 @@ int main()
     /*
      * Output prime numbers in ascending order.
      *
-     * Although threads process chunks in parallel, the results are
-     * stored in isPrime[p]. Therefore, iterating through the array
-     * from 2 to n guarantees ascending output order.
+     * Threads only compute and store results in is_prime[p].
+     * File output is performed serially after all threads finish.
+     * This avoids concurrent writes to the same file and guarantees
+     * that prime numbers are written in ascending order.
      */
     for (int p = 2; p < n; p++) {
 
-        if (isPrime[p] == 1) {
+        if (is_prime[p] == 1) {
 
             if (n < 100) {
+
                 printf("%d ", p);
+
             }
             else {
+
                 fprintf(
                     file,
                     "%d\n",
@@ -282,7 +290,7 @@ int main()
     }
 
     /* Free prime-number array. */
-    free(isPrime);
+    free(is_prime);
 
     /* Stop measuring overall execution time. */
     clock_gettime(
@@ -303,9 +311,9 @@ int main()
     );
 
     /* Free dynamically allocated thread resources. */
-    free(tid);
-    free(threadNum);
-    free(threadTimes);
+    free(thread_ids);
+    free(thread_numbers);
+    free(thread_times);
 
     return 0;
 }
@@ -313,43 +321,48 @@ int main()
 /**
  * @brief Performs prime-number computation for a single POSIX thread.
  *
- * The thread repeatedly obtains a chunk of unprocessed numbers using
- * the shared nextNumber counter. Access to nextNumber is synchronised
- * using a mutex.
+ * Each thread repeatedly requests the next available chunk of numbers.
+ * Access to the shared next_number variable is protected by a mutex.
  *
- * Each number is tested using an optimised primality test. Even numbers
- * greater than 2 are skipped, and only odd divisors up to sqrt(p)
- * are examined.
+ * Prime computation takes place outside the critical section so threads
+ * can perform the expensive computation concurrently.
  *
- * @param pArg Pointer to the thread's integer identifier.
+ * Dynamic chunk allocation improves load balancing because candidate
+ * numbers can require different amounts of computation. A thread that
+ * finishes one chunk can request another instead of remaining idle.
+ *
+ * @param arg Pointer to the thread's integer identifier.
  *
  * @return NULL after the thread has completed all available work.
  */
-void *ThreadFunc(void *pArg)
+void *thread_func(void *arg)
 {
-    int my_rank = *((int *)pArg);
+    int thread_id = *((int *)arg);
 
-    struct timespec threadStart, threadEnd;
-    double threadTime;
+    struct timespec thread_start, thread_end;
+    double thread_time;
 
     clock_gettime(
         CLOCK_THREAD_CPUTIME_ID,
-        &threadStart
+        &thread_start
     );
 
     while (1) {
 
-        /* Get the next chunk of work. */
+        /*
+         * Obtain the next available chunk.
+         * Only chunk allocation is protected by the mutex.
+         */
         pthread_mutex_lock(&mutex);
 
-        int start = nextNumber;
+        int start = next_number;
         int end = start + CHUNK_SIZE - 1;
 
-        nextNumber = end + 1;
+        next_number = end + 1;
 
         pthread_mutex_unlock(&mutex);
 
-        /* No more numbers to process. */
+        /* No more numbers remain to process. */
         if (start >= n) {
             break;
         }
@@ -359,15 +372,18 @@ void *ThreadFunc(void *pArg)
             end = n - 1;
         }
 
-        /* Process every number in the assigned chunk. */
+        /*
+         * Prime checking occurs outside the critical section,
+         * allowing multiple threads to compute simultaneously.
+         */
         for (int p = start; p <= end; p++) {
 
-            /* Assume p is not prime. */
-            isPrime[p] = 0;
+            /* Initially assume p is not prime. */
+            is_prime[p] = 0;
 
             /* 2 is prime. */
             if (p == 2) {
-                isPrime[p] = 1;
+                is_prime[p] = 1;
                 continue;
             }
 
@@ -378,10 +394,10 @@ void *ThreadFunc(void *pArg)
 
             bool prime = true;
 
-            /* Only check divisors up to sqrt(p). */
+            /* Only divisors up to sqrt(p) need to be checked. */
             int limit = (int)sqrt((double)p);
 
-            /* Check odd divisors. */
+            /* Check only odd divisors. */
             for (int i = 3; i <= limit; i += 2) {
 
                 if (p % i == 0) {
@@ -392,7 +408,7 @@ void *ThreadFunc(void *pArg)
 
             /* No divisor found, therefore p is prime. */
             if (prime) {
-                isPrime[p] = 1;
+                is_prime[p] = 1;
             }
         }
     }
@@ -400,17 +416,17 @@ void *ThreadFunc(void *pArg)
     /* Measure CPU time used by this thread. */
     clock_gettime(
         CLOCK_THREAD_CPUTIME_ID,
-        &threadEnd
+        &thread_end
     );
 
-    threadTime =
-        (threadEnd.tv_sec - threadStart.tv_sec) * 1e9;
+    thread_time =
+        (thread_end.tv_sec - thread_start.tv_sec) * 1e9;
 
-    threadTime =
-        (threadTime +
-        (threadEnd.tv_nsec - threadStart.tv_nsec)) * 1e-9;
+    thread_time =
+        (thread_time +
+        (thread_end.tv_nsec - thread_start.tv_nsec)) * 1e-9;
 
-    threadTimes[my_rank] = threadTime;
+    thread_times[thread_id] = thread_time;
 
     return NULL;
 }

@@ -11,8 +11,8 @@
  * threads that finish their assigned chunks earlier to obtain additional
  * chunks of work, helping to balance the workload.
  *
- * Prime numbers are output in ascending order. Prime numbers that are less
- * than 100 are printed to standard output, while larger results are written
+ * Prime numbers are output in ascending order. Prime numbers less than
+ * 100 are printed to standard output, while larger results are written
  * to a text file.
  *
  * @author Suchir
@@ -38,11 +38,12 @@
  *
  * @return 0 if the program completes successfully, or 1 if an error occurs.
  */
-int main() {
+int main()
+{
     int n;
-    struct timespec start, end, startComp, endComp;
+    struct timespec start, end, start_comp, end_comp;
     double time_taken;
-    char filename[50];
+    char file_name[50];
 
     printf("Enter the number: ");
 
@@ -51,68 +52,95 @@ int main() {
         return 1;
     }
 
-    // Start measuring overall execution time
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    /* Start measuring overall execution time. */
+    clock_gettime(
+        CLOCK_MONOTONIC,
+        &start
+    );
 
-    snprintf(filename, sizeof(filename), "primes3_%d.txt", n);
+    snprintf(
+        file_name,
+        sizeof(file_name),
+        "primes3_%d.txt",
+        n
+    );
 
     FILE *file = NULL;
 
-    // Allocate memory to store prime results
-    int *isPrime = malloc((size_t)n * sizeof(int));
+    /* Allocate memory to store prime results. */
+    int *is_prime =
+        malloc((size_t)n * sizeof(int));
 
-    if (isPrime == NULL) {
+    if (is_prime == NULL) {
+
         printf("Memory allocation failed.\n");
+
         return 1;
     }
 
-    // For n greater than or equal to 100, create a file
+    /* Create output file for n >= 100. */
     if (n >= 100) {
-        file = fopen(filename, "w");
+
+        file = fopen(file_name, "w");
 
         if (file == NULL) {
+
             printf("Could not create file.\n");
-            free(isPrime);
+
+            free(is_prime);
+
             return 1;
         }
     }
 
-    // Start measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &startComp);
+    /* Start measuring computational time. */
+    clock_gettime(
+        CLOCK_MONOTONIC,
+        &start_comp
+    );
 
     /**
      * Parallel prime-number computation.
      *
-     * Each iteration checks whether a number p is prime.
-     * The iterations are distributed dynamically among OpenMP threads.
+     * The loop iterations are distributed among OpenMP threads using
+     * dynamic scheduling. Each thread receives CHUNK_SIZE candidate
+     * numbers at a time.
      *
-     * schedule(dynamic, CHUNK_SIZE) assigns chunks of CHUNK_SIZE
-     * iterations to available threads. When a thread finishes its
-     * current chunk, it receives another available chunk.
+     * Dynamic scheduling is used because prime checking does not always
+     * require the same amount of work for every candidate. Threads that
+     * finish their current chunk can receive another available chunk,
+     * reducing the chance of threads remaining idle.
+     *
+     * Each iteration writes only to its own is_prime[p] location.
+     * Therefore, no mutex or OpenMP critical section is required for
+     * storing the prime result.
      */
     #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (int p = 2; p < n; p++) {
 
-        // Start by assuming p is not prime
-        isPrime[p] = 0;
+        /* Initially assume p is not prime. */
+        is_prime[p] = 0;
 
-        // 2 is prime
+        /* 2 is prime. */
         if (p == 2) {
-            isPrime[p] = 1;
+            is_prime[p] = 1;
             continue;
         }
 
-        // Even numbers greater than 2 are not prime
+        /* Even numbers greater than 2 are not prime. */
         if (p % 2 == 0) {
             continue;
         }
 
         bool prime = true;
 
-        // Calculate sqrt only once for each number
+        /*
+         * A composite number must have a divisor less than or equal
+         * to its square root, so no larger divisors need to be checked.
+         */
         int limit = (int)sqrt((double)p);
 
-        // Check odd divisors from 3 to sqrt(p)
+        /* Check only odd divisors from 3 to sqrt(p). */
         for (int i = 3; i <= limit; i += 2) {
 
             if (p % i == 0) {
@@ -121,52 +149,94 @@ int main() {
             }
         }
 
-        // If no divisor was found, p is prime
+        /* If no divisor was found, p is prime. */
         if (prime) {
-            isPrime[p] = 1;
+            is_prime[p] = 1;
         }
     }
 
-    // Stop measuring computational time
-    clock_gettime(CLOCK_MONOTONIC, &endComp);
+    /* Stop measuring computational time. */
+    clock_gettime(
+        CLOCK_MONOTONIC,
+        &end_comp
+    );
 
-    time_taken = (endComp.tv_sec - startComp.tv_sec) * 1e9;
-    time_taken = (time_taken +
-                 (endComp.tv_nsec - startComp.tv_nsec)) * 1e-9;
+    time_taken =
+        (end_comp.tv_sec - start_comp.tv_sec) * 1e9;
 
-    printf("\nComputational time only(s): %lf\n", time_taken);
+    time_taken =
+        (time_taken +
+        (end_comp.tv_nsec - start_comp.tv_nsec)) * 1e-9;
 
-    // Output primes AFTER computational timing
+    printf(
+        "\nComputational time only(s): %lf\n",
+        time_taken
+    );
+
+    /*
+     * File output is performed after the parallel region.
+     *
+     * Writing results serially avoids concurrent access to the same
+     * output file. Scanning is_prime from 2 to n also guarantees that
+     * the prime numbers are written in ascending order.
+     *
+     * Output is kept outside computational timing so file I/O does not
+     * affect the measured prime-computation performance.
+     */
     for (int p = 2; p < n; p++) {
 
-        if (isPrime[p] == 1) {
+        if (is_prime[p] == 1) {
 
             if (n < 100) {
+
                 printf("%d ", p);
-            } else {
-                fprintf(file, "%d\n", p);
+
+            }
+            else {
+
+                fprintf(
+                    file,
+                    "%d\n",
+                    p
+                );
             }
         }
     }
 
     if (n < 100) {
+
         printf("\n");
-    } else {
+
+    }
+    else {
+
         fclose(file);
-        printf("Prime numbers have been written to the text file.\n");
+
+        printf(
+            "Prime numbers have been written to the text file.\n"
+        );
     }
 
-    // Free allocated memory
-    free(isPrime);
+    /* Free allocated memory. */
+    free(is_prime);
 
-    // Stop measuring overall execution time
-    clock_gettime(CLOCK_MONOTONIC, &end);
+    /* Stop measuring overall execution time. */
+    clock_gettime(
+        CLOCK_MONOTONIC,
+        &end
+    );
 
-    time_taken = (end.tv_sec - start.tv_sec) * 1e9;
-    time_taken = (time_taken +
-                 (end.tv_nsec - start.tv_nsec)) * 1e-9;
+    time_taken =
+        (end.tv_sec - start.tv_sec) * 1e9;
 
-    printf("Overall time(s): %lf\n", time_taken);
+    time_taken =
+        (time_taken +
+        (end.tv_nsec - start.tv_nsec)) * 1e-9;
+
+    printf(
+        "Overall time(s): %lf\n",
+        time_taken
+    );
 
     return 0;
 }
