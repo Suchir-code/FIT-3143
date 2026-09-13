@@ -8,23 +8,20 @@
 # SETTINGS
 # ------------------------------------------------------------
 
-SERIAL_EXEC="../task1"
 MPI_EXEC="./task1_mpi"
 HYBRID_EXEC="./task2_hybrid"
 
-RESULTS="task2_results.csv"
+RESULTS="task2_results3.csv"
 
-# 30 values of n
+# MPI baseline used for Graph 4
+MPI_PROCESSES=4
+
+# ------------------------------------------------------------
+# N VALUES
+# Existing serial measurements: 50M - 340M
+# ------------------------------------------------------------
+
 tests=(
-    10000000
-    20000000
-    30000000
-    40000000
-    50000000
-    60000000
-    70000000
-    80000000
-    90000000
     100000000
     110000000
     120000000
@@ -46,26 +43,69 @@ tests=(
     280000000
     290000000
     300000000
+    310000000
+    320000000
+    330000000
+    340000000
+    350000000
+    360000000
+    370000000
+    380000000
 )
 
 # ------------------------------------------------------------
-# HYBRID CONFIGURATIONS
+# EXISTING SERIAL OVERALL TIMES
+#
+# These were measured previously and are being reused as the
+# serial baseline for Task 2.
 # ------------------------------------------------------------
 
-# Format:
-# MPI_PROCESSES:OPENMP_THREADS
+declare -A SERIAL_OVERALL
+
+SERIAL_OVERALL[100000000]=2.137799
+SERIAL_OVERALL[110000000]=2.327720
+SERIAL_OVERALL[120000000]=2.662324
+SERIAL_OVERALL[130000000]=2.828227
+SERIAL_OVERALL[140000000]=3.068335
+SERIAL_OVERALL[150000000]=3.365602
+SERIAL_OVERALL[160000000]=3.552484
+SERIAL_OVERALL[170000000]=3.680144
+SERIAL_OVERALL[180000000]=4.057366
+SERIAL_OVERALL[190000000]=4.423531
+SERIAL_OVERALL[200000000]=4.493130
+SERIAL_OVERALL[210000000]=4.895807
+SERIAL_OVERALL[220000000]=5.163711
+SERIAL_OVERALL[230000000]=5.582083
+SERIAL_OVERALL[240000000]=5.758236
+SERIAL_OVERALL[250000000]=5.874211
+SERIAL_OVERALL[260000000]=6.273753
+SERIAL_OVERALL[270000000]=6.888971
+SERIAL_OVERALL[280000000]=6.606389
+SERIAL_OVERALL[290000000]=7.794150
+SERIAL_OVERALL[300000000]=7.591005
+SERIAL_OVERALL[310000000]=8.606820
+SERIAL_OVERALL[320000000]=9.152167
+SERIAL_OVERALL[330000000]=10.072646
+SERIAL_OVERALL[340000000]=9.756816
+SERIAL_OVERALL[350000000]=18.877864
+SERIAL_OVERALL[360000000]=11.162981
+SERIAL_OVERALL[370000000]=10.567124
+SERIAL_OVERALL[380000000]=12.447957
+
+# ------------------------------------------------------------
+# HYBRID CONFIGURATIONS
+#
+# MPI processes : OpenMP threads
+#
+# The first four are especially important for Graph 4:
+# fixed 4 MPI processes, increasing OpenMP threads.
+# ------------------------------------------------------------
 
 configs=(
-    "1:1"
-    "1:2"
-    "2:1"
-    "1:4"
-    "2:2"
     "4:1"
-    "1:8"
-    "2:4"
     "4:2"
-    "8:1"
+    "4:4"
+    "4:8"
 )
 
 # ------------------------------------------------------------
@@ -73,11 +113,6 @@ configs=(
 # ------------------------------------------------------------
 
 echo "Checking executables..."
-
-if [ ! -x "$SERIAL_EXEC" ]; then
-    echo "ERROR: Serial executable not found: $SERIAL_EXEC"
-    exit 1
-fi
 
 if [ ! -x "$MPI_EXEC" ]; then
     echo "ERROR: MPI executable not found: $MPI_EXEC"
@@ -109,34 +144,26 @@ for n in "${tests[@]}"; do
     echo "============================================================"
 
     # --------------------------------------------------------
-    # SERIAL
+    # GET EXISTING SERIAL BASELINE
     # --------------------------------------------------------
 
-    echo "Running Serial..."
-
-    serial_output=$("$SERIAL_EXEC" "$n")
-
-    serial_overall=$(echo "$serial_output" |
-        grep "Overall time" |
-        awk '{print $NF}')
+    serial_overall="${SERIAL_OVERALL[$n]}"
 
     if [ -z "$serial_overall" ]; then
-        echo "ERROR: Could not read serial runtime."
-        echo "$serial_output"
+        echo "ERROR: No serial baseline found for N=$n"
         exit 1
     fi
 
-    echo "Serial overall: $serial_overall s"
-
+    echo "Existing serial overall: $serial_overall s"
 
     # --------------------------------------------------------
-    # MPI TASK 1
+    # MPI TASK 1 BASELINE
     # --------------------------------------------------------
 
     echo
-    echo "Running MPI Task 1..."
+    echo "Running MPI Task 1 ($MPI_PROCESSES processes)..."
 
-    mpi_output=$(mpirun -np 4 "$MPI_EXEC" "$n")
+    mpi_output=$(mpirun -np "$MPI_PROCESSES" "$MPI_EXEC" "$n")
 
     mpi_overall=$(echo "$mpi_output" |
         grep "Overall time" |
@@ -148,8 +175,7 @@ for n in "${tests[@]}"; do
         exit 1
     fi
 
-    echo "MPI (4 processes) overall: $mpi_overall s"
-
+    echo "MPI overall: $mpi_overall s"
 
     # --------------------------------------------------------
     # HYBRID CONFIGURATIONS
@@ -163,9 +189,12 @@ for n in "${tests[@]}"; do
 
         echo
         echo "Running Hybrid: ${mpi_processes} MPI × ${omp_threads} OpenMP"
-        echo "Total threads: $total_threads"
+        echo "Total execution threads: $total_threads"
 
-        hybrid_output=$(mpirun -np "$mpi_processes" \
+        # --oversubscribe allows intentional testing of more
+        # software threads than available CPU cores.
+        hybrid_output=$(mpirun --oversubscribe \
+            -np "$mpi_processes" \
             "$HYBRID_EXEC" "$n" "$omp_threads")
 
         hybrid_comp=$(echo "$hybrid_output" |
@@ -186,20 +215,20 @@ for n in "${tests[@]}"; do
         # SPEEDUPS
         # ----------------------------------------------------
 
-        # Speedup against SERIAL
+        # Overall speedup compared with existing serial baseline
         serial_speedup=$(awk \
             -v s="$serial_overall" \
             -v h="$hybrid_overall" \
             'BEGIN { printf "%.6f", s/h }')
 
-        # Speedup against MPI Task 1
+        # Overall speedup compared with MPI Task 1
         mpi_speedup=$(awk \
             -v m="$mpi_overall" \
             -v h="$hybrid_overall" \
             'BEGIN { printf "%.6f", m/h }')
 
         # ----------------------------------------------------
-        # SAVE TO CSV
+        # SAVE RESULTS
         # ----------------------------------------------------
 
         echo "$n,$mpi_processes,$omp_threads,$total_threads,$serial_overall,$mpi_overall,$hybrid_comp,$hybrid_overall,$serial_speedup,$mpi_speedup" >> "$RESULTS"
@@ -210,7 +239,7 @@ for n in "${tests[@]}"; do
         echo "  MPI speedup:    $mpi_speedup x"
 
         # ----------------------------------------------------
-        # CLEAN OUTPUT FILE
+        # REMOVE OUTPUT FILE
         # ----------------------------------------------------
 
         rm -f "primes_mpi_${n}.txt"
@@ -225,13 +254,15 @@ done
 # COMPLETE
 # ------------------------------------------------------------
 
-echo
 echo "============================================================"
 echo "ALL TASK 2 TESTS COMPLETE"
 echo "============================================================"
 echo
 echo "Results saved to:"
 echo "$RESULTS"
+echo
+echo "Number of data rows:"
+tail -n +2 "$RESULTS" | wc -l
 echo
 echo "You can inspect the results with:"
 echo "cat $RESULTS"
