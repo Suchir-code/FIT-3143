@@ -1,0 +1,6 @@
+mpi_processes,threads,total_workers,empirical_speedup,theoretical_speedup,task3_communication
+1,1,1,1.145481,1.000000,0.000000
+1,2,2,1.616644,1.517709,0.000000
+2,2,4,1.971728,1.954830,0.290251
+4,2,8,2.165741,2.293363,0.357103
+8,2,16,2.240082,2.463828,0.467114

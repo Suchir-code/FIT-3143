@@ -1,0 +1,41 @@
+===== 1 MPI PROCESS =====
+srun: Warning: can't run 1 processes on 2 nodes, setting nnodes to 1
+Prime numbers have been written to primes_mpi_300000000.txt
+MPI processes: 1
+Computational time only(s): 4.163401
+Overall time(s): 6.255777
+Task 3 broadcast communication time(s): 0.000000
+Task 3 result communication time(s): 0.000000
+Task 3 total MPI communication time(s): 0.000000
+===== 2 MPI PROCESSES =====
+Prime numbers have been written to primes_mpi_300000000.txt
+MPI processes: 2
+Computational time only(s): 2.118972
+Overall time(s): 4.406728
+Task 3 broadcast communication time(s): 0.000309
+Task 3 result communication time(s): 0.205291
+Task 3 total MPI communication time(s): 0.205600
+===== 4 MPI PROCESSES =====
+Prime numbers have been written to primes_mpi_300000000.txt
+MPI processes: 4
+Computational time only(s): 1.191017
+Overall time(s): 3.328487
+Task 3 broadcast communication time(s): 0.000200
+Task 3 result communication time(s): 0.226243
+Task 3 total MPI communication time(s): 0.226443
+===== 8 MPI PROCESSES =====
+Prime numbers have been written to primes_mpi_300000000.txt
+MPI processes: 8
+Computational time only(s): 0.768311
+Overall time(s): 3.094017
+Task 3 broadcast communication time(s): 0.000824
+Task 3 result communication time(s): 0.340282
+Task 3 total MPI communication time(s): 0.341107
+===== 16 MPI PROCESSES =====
+Prime numbers have been written to primes_mpi_300000000.txt
+MPI processes: 16
+Computational time only(s): 0.676854
+Overall time(s): 2.846113
+Task 3 broadcast communication time(s): 0.000889
+Task 3 result communication time(s): 0.436335
+Task 3 total MPI communication time(s): 0.437224

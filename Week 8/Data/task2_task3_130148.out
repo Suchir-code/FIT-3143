@@ -1,0 +1,107 @@
+===== 1 MPI x 1 THREAD =====
+srun: Warning: can't run 1 processes on 2 nodes, setting nnodes to 1
+
+==============================
+Hybrid MPI + OpenMP Results
+==============================
+N: 300000000
+MPI processes: 1
+OpenMP threads per process: 1
+Total threads: 1
+Base-prime generation: 0.000161 seconds
+Base-prime broadcast: 0.000000 seconds
+OpenMP sieve computation: 3.398401 seconds
+Computational total: 3.398562 seconds
+MPI communication: 0.000000 seconds
+File output: 1.851168 seconds
+Overall execution: 5.251998 seconds
+Output file: primes_hybrid_300000000.txt
+Task 3 broadcast communication: 0.000000 seconds
+Task 3 result communication: 0.000000 seconds
+Task 3 total MPI communication: 0.000000 seconds
+==============================
+===== 1 MPI x 2 THREADS =====
+srun: Warning: can't run 1 processes on 2 nodes, setting nnodes to 1
+
+==============================
+Hybrid MPI + OpenMP Results
+==============================
+N: 300000000
+MPI processes: 1
+OpenMP threads per process: 2
+Total threads: 2
+Base-prime generation: 0.000160 seconds
+Base-prime broadcast: 0.000000 seconds
+OpenMP sieve computation: 1.991054 seconds
+Computational total: 1.991214 seconds
+MPI communication: 0.000000 seconds
+File output: 1.989224 seconds
+Overall execution: 4.001362 seconds
+Output file: primes_hybrid_300000000.txt
+Task 3 broadcast communication: 0.000000 seconds
+Task 3 result communication: 0.000000 seconds
+Task 3 total MPI communication: 0.000000 seconds
+==============================
+===== 2 MPI x 2 THREADS =====
+
+==============================
+Hybrid MPI + OpenMP Results
+==============================
+N: 300000000
+MPI processes: 2
+OpenMP threads per process: 2
+Total threads: 4
+Base-prime generation: 0.000157 seconds
+Base-prime broadcast: 0.000176 seconds
+OpenMP sieve computation: 0.953919 seconds
+Computational total: 0.954076 seconds
+MPI communication: 0.289788 seconds
+File output: 1.967922 seconds
+Overall execution: 3.233025 seconds
+Output file: primes_hybrid_300000000.txt
+Task 3 broadcast communication: 0.000330 seconds
+Task 3 result communication: 0.289921 seconds
+Task 3 total MPI communication: 0.290251 seconds
+==============================
+===== 4 MPI x 2 THREADS =====
+
+==============================
+Hybrid MPI + OpenMP Results
+==============================
+N: 300000000
+MPI processes: 4
+OpenMP threads per process: 2
+Total threads: 8
+Base-prime generation: 0.000167 seconds
+Base-prime broadcast: 0.003480 seconds
+OpenMP sieve computation: 0.713054 seconds
+Computational total: 0.713221 seconds
+MPI communication: 0.353557 seconds
+File output: 1.933066 seconds
+Overall execution: 3.031985 seconds
+Output file: primes_hybrid_300000000.txt
+Task 3 broadcast communication: 0.003233 seconds
+Task 3 result communication: 0.353869 seconds
+Task 3 total MPI communication: 0.357103 seconds
+==============================
+===== 8 MPI x 2 THREADS =====
+
+==============================
+Hybrid MPI + OpenMP Results
+==============================
+N: 300000000
+MPI processes: 8
+OpenMP threads per process: 2
+Total threads: 16
+Base-prime generation: 0.000154 seconds
+Base-prime broadcast: 0.015670 seconds
+OpenMP sieve computation: 0.604802 seconds
+Computational total: 0.604956 seconds
+MPI communication: 0.403587 seconds
+File output: 1.890256 seconds
+Overall execution: 2.947785 seconds
+Output file: primes_hybrid_300000000.txt
+Task 3 broadcast communication: 0.004206 seconds
+Task 3 result communication: 0.462908 seconds
+Task 3 total MPI communication: 0.467114 seconds
+==============================
