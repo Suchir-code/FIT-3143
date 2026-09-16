@@ -21,7 +21,6 @@
  */
 
 #include <math.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -29,15 +28,6 @@
 
 #define CHUNK_SIZE 10000
 
-/**
- * @brief Main entry point of the OpenMP prime-number program.
- *
- * Reads the input value n, allocates memory for storing prime results,
- * performs the parallel prime-number computation, measures execution time,
- * outputs the results, and releases allocated memory.
- *
- * @return 0 if the program completes successfully, or 1 if an error occurs.
- */
 int main()
 {
     int n;
@@ -72,23 +62,17 @@ int main()
         malloc((size_t)n * sizeof(int));
 
     if (is_prime == NULL) {
-
         printf("Memory allocation failed.\n");
-
         return 1;
     }
 
     /* Create output file for n >= 100. */
     if (n >= 100) {
-
         file = fopen(file_name, "w");
 
         if (file == NULL) {
-
             printf("Could not create file.\n");
-
             free(is_prime);
-
             return 1;
         }
     }
@@ -99,61 +83,138 @@ int main()
         &start_comp
     );
 
-    /**
-     * Parallel prime-number computation.
-     *
-     * The loop iterations are distributed among OpenMP threads using
-     * dynamic scheduling. Each thread receives CHUNK_SIZE candidate
-     * numbers at a time.
-     *
-     * Dynamic scheduling is used because prime checking does not always
-     * require the same amount of work for every candidate. Threads that
-     * finish their current chunk can receive another available chunk,
-     * reducing the chance of threads remaining idle.
-     *
-     * Each iteration writes only to its own is_prime[p] location.
-     * Therefore, no mutex or OpenMP critical section is required for
-     * storing the prime result.
+    int limit;
+
+    if (n > 2)
+        limit = (int)sqrt((double)(n - 1));
+    else
+        limit = 1;
+
+    /*
+     * Generate base primes up to sqrt(n).
      */
-    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
-    for (int p = 2; p < n; p++) {
+    unsigned char *base_sieve =
+        malloc((size_t)(limit + 1) * sizeof(unsigned char));
 
-        /* Initially assume p is not prime. */
-        is_prime[p] = 0;
+    if (base_sieve == NULL) {
+        printf("Memory allocation failed.\n");
 
-        /* 2 is prime. */
-        if (p == 2) {
-            is_prime[p] = 1;
-            continue;
-        }
+        if (file != NULL)
+            fclose(file);
 
-        /* Even numbers greater than 2 are not prime. */
-        if (p % 2 == 0) {
-            continue;
-        }
+        free(is_prime);
+        return 1;
+    }
 
-        bool prime = true;
+    for (int i = 0; i <= limit; i++)
+        base_sieve[i] = 1;
 
-        /*
-         * A composite number must have a divisor less than or equal
-         * to its square root, so no larger divisors need to be checked.
-         */
-        int limit = (int)sqrt((double)p);
+    if (limit >= 0)
+        base_sieve[0] = 0;
 
-        /* Check only odd divisors from 3 to sqrt(p). */
-        for (int i = 3; i <= limit; i += 2) {
+    if (limit >= 1)
+        base_sieve[1] = 0;
 
-            if (p % i == 0) {
-                prime = false;
-                break;
+    for (int prime = 2; prime * prime <= limit; prime++) {
+        if (base_sieve[prime] == 1) {
+            for (int multiple = prime * prime;
+                 multiple <= limit;
+                 multiple += prime) {
+
+                base_sieve[multiple] = 0;
             }
         }
+    }
 
-        /* If no divisor was found, p is prime. */
-        if (prime) {
-            is_prime[p] = 1;
+    int base_count = 0;
+
+    for (int i = 2; i <= limit; i++) {
+        if (base_sieve[i] == 1)
+            base_count++;
+    }
+
+    int *base_primes = NULL;
+
+    if (base_count > 0) {
+        base_primes =
+            malloc((size_t)base_count * sizeof(int));
+
+        if (base_primes == NULL) {
+            printf("Memory allocation failed.\n");
+
+            free(base_sieve);
+
+            if (file != NULL)
+                fclose(file);
+
+            free(is_prime);
+            return 1;
+        }
+
+        int index = 0;
+
+        for (int i = 2; i <= limit; i++) {
+            if (base_sieve[i] == 1) {
+                base_primes[index] = i;
+                index++;
+            }
         }
     }
+
+    free(base_sieve);
+
+    /*
+     * Parallel Sieve of Eratosthenes.
+     *
+     * The range is divided into chunks. OpenMP dynamically distributes
+     * the chunks between threads. Each thread works only on the section
+     * assigned to it, so no critical section is required.
+     */
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (long long chunk_low = 2;
+         chunk_low < n;
+         chunk_low += CHUNK_SIZE) {
+
+        long long chunk_high =
+            chunk_low + CHUNK_SIZE - 1;
+
+        if (chunk_high >= n)
+            chunk_high = n - 1;
+
+        /*
+         * Initially assume all numbers in this chunk are prime.
+         */
+        for (long long i = chunk_low;
+             i <= chunk_high;
+             i++) {
+
+            is_prime[i] = 1;
+        }
+
+        /*
+         * Use the base primes to remove composite numbers
+         * from this chunk.
+         */
+        for (int i = 0; i < base_count; i++) {
+
+            long long prime = base_primes[i];
+            long long first_multiple = prime * prime;
+
+            if (first_multiple < chunk_low) {
+                first_multiple =
+                    ((chunk_low + prime - 1) / prime) * prime;
+            }
+
+            for (long long multiple = first_multiple;
+                 multiple <= chunk_high;
+                 multiple += prime) {
+
+                is_prime[multiple] = 0;
+            }
+        }
+    }
+
+    free(base_primes);
 
     /* Stop measuring computational time. */
     clock_gettime(
@@ -184,16 +245,12 @@ int main()
      * affect the measured prime-computation performance.
      */
     for (int p = 2; p < n; p++) {
-
         if (is_prime[p] == 1) {
 
             if (n < 100) {
-
                 printf("%d ", p);
-
             }
             else {
-
                 fprintf(
                     file,
                     "%d\n",
@@ -204,12 +261,9 @@ int main()
     }
 
     if (n < 100) {
-
         printf("\n");
-
     }
     else {
-
         fclose(file);
 
         printf(
